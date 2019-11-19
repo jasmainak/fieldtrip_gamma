@@ -9,6 +9,7 @@ import numpy as np
 
 from mne import create_info, EpochsArray
 from mne.io import read_epochs_fieldtrip
+from mne.channels import read_layout
 
 from mne.externals.pymatreader.pymatreader import read_mat
 
@@ -40,23 +41,33 @@ ch_names = ['MLF34', 'EMGrgt', 'MRP31', 'MRF22', 'MLC13', 'MRC12',
             'MRF21', 'MRT35', 'MLT31']
 sfreq = 400.
 
-info = create_info(ch_names, sfreq, ch_types='eeg')
-# epochs = read_epochs_fieldtrip('subjectK.mat', info=info,
-#                                data_name='data_left')
-
 ft_struct = read_mat('subjectK.mat',
                    ignore_fields=['previous'],
                    variable_names=['data_left'])
+
+
+# get epochs data
 data = ft_struct['data_left']['trial']
 
 n_trials = len(data)
-min_n_times = min([d.shape[1] for d in data])
+max_n_times = max([d.shape[1] for d in data])
 n_channels = len(ch_names)
 
-data_epochs = np.empty((n_trials, n_channels, min_n_times))
+data_epochs = np.empty((n_trials, n_channels, max_n_times))
 
 for idx, d in enumerate(data):
-      data_epochs[idx, :, :min_n_times] = data[idx][:, :min_n_times]
+      n_times = data[idx].shape[1]
+      data_epochs[idx, :, :n_times] = data[idx]
+
+# get channel types and create info
+ch_types = ['grad'] * len(ch_names)
+ch_types[ch_names.index('EMGlft')] = 'emg'
+ch_types[ch_names.index('EMGrgt')] = 'emg'
+
+info = create_info(ch_names, sfreq, ch_types=ch_types)
 
 epochs = EpochsArray(data_epochs, info)
-epochs.plot(scalings=dict(eeg=1.5e-12))
+epochs.plot(scalings=dict(grad=10e-13), n_epochs=5, n_channels=10)
+
+layout = read_layout('ctf151')
+epochs.plot_psd_topomap(bands=[(30, 60, 'Gamma')], layout=layout)

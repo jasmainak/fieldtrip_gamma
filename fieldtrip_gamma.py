@@ -17,7 +17,7 @@ sfreq = 400.
 
 ft_struct = read_mat('subjectK.mat',
                    ignore_fields=['previous'],
-                   variable_names=['data_left'])
+                   variable_names=['data_left', 'data_right'])
 
 
 # get epochs data
@@ -42,7 +42,33 @@ ch_types[ch_names.index('EMGrgt')] = 'emg'
 info = create_info(ch_names, sfreq, ch_types=ch_types)
 
 epochs = EpochsArray(data_epochs, info)
+epochs.crop(1.1, 1.9)
 epochs.plot(scalings=dict(grad=10e-13), n_epochs=5, n_channels=10)
 
+epochs.plot_psd()
+
 layout = read_layout('ctf151')
+# XXX: what is normalize = True? in the MNE docstring of this function
+# TODO: contrast the PSD with baseline
 epochs.plot_psd_topomap(bands=[(40, 70, 'Gamma')], layout=layout, outlines='skirt')
+
+
+sdfdfdf
+import matplotlib.pyplot as plt
+from mne.viz.utils import center_cmap
+from mne.time_frequency import tfr_multitaper
+
+freqs = np.arange(40, 70, 1)  # frequencies from 2-35Hz
+n_cycles = 30  # use constant t/f resolution
+vmin, vmax = -1, 1.5  # set min and max ERDS values in plot
+baseline = [0, 0.8]  # baseline interval (in s)
+cmap = center_cmap(plt.cm.RdBu, vmin, vmax)  # zero maps to white
+kwargs = dict(n_permutations=100, step_down_p=0.05, seed=1,
+              buffer_size=None)  # for cluster test
+
+# Run TF decomposition overall epochs
+tfr = tfr_multitaper(epochs, freqs=freqs, n_cycles=n_cycles,
+                     use_fft=True, return_itc=False, average=False,
+                     decim=1)
+tfr.crop(0, 1.9)
+tfr.apply_baseline(baseline, mode="percent")

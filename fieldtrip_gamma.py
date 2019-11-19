@@ -1,6 +1,16 @@
-from mne import create_info
+"""
+Reproduce FieldTrip example here:
+http://www.fieldtriptoolbox.org/tutorial/beamformingextended/
+"""
+
+# Authors: Mainak Jas <mainakjas@gmail.com>
+
+import numpy as np
+
+from mne import create_info, EpochsArray
 from mne.io import read_epochs_fieldtrip
 
+from mne.externals.pymatreader.pymatreader import read_mat
 
 ch_names = ['MLF34', 'EMGrgt', 'MRP31', 'MRF22', 'MLC13', 'MRC12',
             'MRT25', 'MRC14', 'MLT14', 'MLO22', 'MLT25', 'MLC41',
@@ -30,6 +40,23 @@ ch_names = ['MLF34', 'EMGrgt', 'MRP31', 'MRF22', 'MLC13', 'MRC12',
             'MRF21', 'MRT35', 'MLT31']
 sfreq = 400.
 
-info = create_info(ch_names, sfreq)
-epochs = read_epochs_fieldtrip('subjectK.mat', info=info,
-                               data_name='data_left')
+info = create_info(ch_names, sfreq, ch_types='eeg')
+# epochs = read_epochs_fieldtrip('subjectK.mat', info=info,
+#                                data_name='data_left')
+
+ft_struct = read_mat('subjectK.mat',
+                   ignore_fields=['previous'],
+                   variable_names=['data_left'])
+data = ft_struct['data_left']['trial']
+
+n_trials = len(data)
+min_n_times = min([d.shape[1] for d in data])
+n_channels = len(ch_names)
+
+data_epochs = np.empty((n_trials, n_channels, min_n_times))
+
+for idx, d in enumerate(data):
+      data_epochs[idx, :, :min_n_times] = data[idx][:, :min_n_times]
+
+epochs = EpochsArray(data_epochs, info)
+epochs.plot(scalings=dict(eeg=1.5e-12))

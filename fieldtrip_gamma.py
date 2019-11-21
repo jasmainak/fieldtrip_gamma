@@ -48,7 +48,42 @@ epochs.plot(scalings=dict(grad=10e-13), n_epochs=5, n_channels=10)
 
 epochs.plot_psd()
 
+from mne.time_frequency import psd_array_multitaper
+
+epochs_baseline = epochs.copy().crop(-0.8, 0).get_data()
+epochs_gamma = epochs.copy().crop(0.3, 1.1).get_data()
+
+# XXX: psd_array_multitaper gives unequal freqs
+psd_gamma, freqs1 = psd_array_multitaper(epochs_gamma, sfreq=epochs.info['sfreq'])
+psd_baseline, freqs2 = psd_array_multitaper(epochs_baseline, sfreq=epochs.info['sfreq'])
+
+psd_gamma = psd_gamma.mean(axis=0)
+psd_baseline = psd_baseline.mean(axis=0)
+
+# psd_gamma = psd_gamma[0]
+# psd_baseline = psd_baseline[0]
+
+freq_range = [40, 70]
+
+idx1 = np.all(np.c_[freqs1 > freq_range[0], freqs1 < freq_range[1]], axis=1)
+psd_gamma = np.sum(psd_gamma[:, idx1], axis=1)
+idx2 = np.all(np.c_[freqs2 > freq_range[0], freqs2 < freq_range[1]], axis=1)
+psd_baseline = np.sum(psd_baseline[:, idx2], axis=1)
+
+# see https://github.com/mne-tools/mne-python/blob/master/mne/baseline.py
+psd_norm = psd_gamma.copy()
+psd_norm -= psd_baseline
+psd_norm /= psd_baseline
+
+from mne import EvokedArray
+
+evoked = EvokedArray(psd_norm[:, None], epochs.info, tmin=0.)
+
 layout = read_layout('CTF151.lay')
+evoked.plot_topomap(layout=layout, times=[0.])
+
+sdfdfddfdf
+
 # XXX: what is normalize = True? in the MNE docstring of this function
 # TODO: contrast the PSD with baseline
 
@@ -57,7 +92,7 @@ layout = read_layout('CTF151.lay')
 
 epochs.plot_psd_topomap(bands=[(40, 70, 'Gamma')], layout=layout,
                         outlines='skirt')
-
+dfdfdf
 from mne.time_frequency import tfr_morlet
 
 freqs = np.arange(20, 100, 1)

@@ -43,13 +43,17 @@ ch_types[ch_names.index('EMGrgt')] = 'emg'
 
 info = create_info(ch_names, sfreq, ch_types=ch_types)
 
+from mne.io.fieldtrip.utils import _create_montage
+montage = _create_montage(ft_struct['data_left'])
+
 data_epochs = notch_filter(data_epochs, sfreq, [50., 100., 150.])
 epochs = EpochsArray(data_epochs, info, tmin=-1.)
+epochs.set_montage(montage)
 epochs.crop(-1., 1.3)
 epochs.plot(scalings=dict(grad=10e-13), n_epochs=5, n_channels=10)
 
 epochs.plot_psd()
-
+sddfdf
 freqs = np.arange(20., 100., 1.)
 n_cycles = 44
 time_bandwidth = 4.0  # Least possible frequency-smoothing (1 taper)

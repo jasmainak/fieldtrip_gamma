@@ -48,15 +48,21 @@ montage = _create_montage(ft_struct['data_left'])
 
 data_epochs = notch_filter(data_epochs, sfreq, [50., 100., 150.])
 epochs = EpochsArray(data_epochs, info, tmin=-1.)
-epochs.set_montage(montage)
+for ch_name, dig in zip(montage.ch_names, montage.dig):
+    idx = epochs.ch_names.index(ch_name)
+    epochs.info['chs'][idx]['loc'] = np.zeros((12,))
+    epochs.info['chs'][idx]['loc'][:3] = dig['r']
+
 epochs.crop(-1., 1.3)
 epochs.plot(scalings=dict(grad=10e-13), n_epochs=5, n_channels=10)
 
 epochs.plot_psd()
-sddfdf
+
 freqs = np.arange(20., 100., 1.)
 n_cycles = 44
 time_bandwidth = 4.0  # Least possible frequency-smoothing (1 taper)
+
+# XXX: how to deal with unequal trials?
 power = tfr_multitaper(epochs, freqs=freqs, n_cycles=n_cycles,
                        time_bandwidth=time_bandwidth, return_itc=False,
                        average=True)
@@ -76,13 +82,14 @@ power.plot_topomap(layout=layout, fmin=40., fmax=70., tmin=0.3, tmax=tmax,
                    baseline=baseline, mode=mode, show_names=False,
                    outlines='skirt')
 
-dfdfdf
-
 # Download fsaverage files
 import mne
 import os.path as op
 
-fs_dir = '/autofs/space/meghnn_001/users/mjas/mne_data/MNE-fsaverage-data/fsaverage'
+from mne.datasets import sample
+
+fs_dir = op.join(op.dirname(sample.data_path()), 'MNE-fsaverage-data',
+                 'fsaverage')
 subjects_dir = op.dirname(fs_dir)
 
 # Beamforming

@@ -8,8 +8,10 @@ http://www.fieldtriptoolbox.org/tutorial/beamformingextended/
 import numpy as np
 
 from mne import create_info, EpochsArray
-from mne.channels import read_layout
 from mne.filter import notch_filter
+from mne.channels import read_layout
+
+from mne.time_frequency import tfr_multitaper
 
 from mne.externals.pymatreader.pymatreader import read_mat
 
@@ -48,64 +50,29 @@ epochs.plot(scalings=dict(grad=10e-13), n_epochs=5, n_channels=10)
 
 epochs.plot_psd()
 
-from mne.time_frequency import psd_array_multitaper
-
-epochs_baseline = epochs.copy().crop(-0.8, 0).get_data()
-epochs_gamma = epochs.copy().crop(0.3, 1.1).get_data()
-
-# XXX: psd_array_multitaper gives unequal freqs
-psd_gamma, freqs1 = psd_array_multitaper(epochs_gamma, sfreq=epochs.info['sfreq'])
-psd_baseline, freqs2 = psd_array_multitaper(epochs_baseline, sfreq=epochs.info['sfreq'])
-
-psd_gamma = psd_gamma.mean(axis=0)
-psd_baseline = psd_baseline.mean(axis=0)
-
-# psd_gamma = psd_gamma[0]
-# psd_baseline = psd_baseline[0]
-
-freq_range = [40, 70]
-
-idx1 = np.all(np.c_[freqs1 > freq_range[0], freqs1 < freq_range[1]], axis=1)
-psd_gamma = np.sum(psd_gamma[:, idx1], axis=1)
-idx2 = np.all(np.c_[freqs2 > freq_range[0], freqs2 < freq_range[1]], axis=1)
-psd_baseline = np.sum(psd_baseline[:, idx2], axis=1)
-
-# see https://github.com/mne-tools/mne-python/blob/master/mne/baseline.py
-psd_norm = psd_gamma.copy()
-psd_norm -= psd_baseline
-psd_norm /= psd_baseline
-
-from mne import EvokedArray
-
-evoked = EvokedArray(psd_norm[:, None], epochs.info, tmin=0.)
+freqs = np.arange(20., 100., 1.)
+n_cycles = 44
+time_bandwidth = 4.0  # Least possible frequency-smoothing (1 taper)
+power = tfr_multitaper(epochs, freqs=freqs, n_cycles=n_cycles,
+                       time_bandwidth=time_bandwidth, return_itc=False,
+                       average=True)
 
 layout = read_layout('CTF151.lay')
-evoked.plot_topomap(layout=layout, times=[0.])
 
-sdfdfddfdf
-
-# XXX: what is normalize = True? in the MNE docstring of this function
-# TODO: contrast the PSD with baseline
-
-# XXX: epochs.filter doesn't work
-# epochs.filter(40., 70.)
-
-epochs.plot_psd_topomap(bands=[(40, 70, 'Gamma')], layout=layout,
-                        outlines='skirt')
-dfdfdf
-from mne.time_frequency import tfr_morlet
-
-freqs = np.arange(20, 100, 1)
-n_cycles = freqs / 2.
-
-power = tfr_morlet(epochs, freqs=freqs,
-                   n_cycles=n_cycles, return_itc=False)
-ch_average = ['MLO11', 'ML012', 'ML021', 'MLP31', 'MRO11', 'MRO12', 'MRO21',
-              'MRO32', 'MRP31', 'MZO01', 'MZP02']
+# Plot results.
+vmin, vmax = -0.45, 0.6
+picks = ['MRP31', 'MZP02', 'MRO12', 'MR021', 'ML012']
 # XXX: label is incorrect
-power.plot(ch_average, baseline=(-0.8, 0.), mode='percent',
-           show=True, colorbar=False)
+baseline = (-0.8, 0.)
+mode = 'percent'
+tmax = 1.1
+power.plot(picks, baseline=baseline, mode=mode, vmin=vmin, vmax=vmax,
+           layout=layout, tmin=-0.8, tmax=tmax)
+power.plot_topomap(layout=layout, fmin=40., fmax=70., tmin=0.3, tmax=tmax,
+                   baseline=baseline, mode=mode, show_names=False,
+                   outlines='skirt')
 
+dfdfdf
 
 # Download fsaverage files
 import mne

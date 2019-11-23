@@ -12,10 +12,16 @@ from mne.filter import notch_filter
 from mne.channels import read_layout
 
 from mne.time_frequency import tfr_multitaper
-
+from mne.report import Report
 from mne.externals.pymatreader.pymatreader import read_mat
+from mne.io.fieldtrip.utils import _create_montage
 
 sfreq = 400.
+
+rep = Report()
+
+####################
+# READ DATA
 
 ft_struct = read_mat('subjectK.mat',
                      ignore_fields=['previous'],
@@ -42,8 +48,6 @@ ch_types[ch_names.index('EMGlft')] = 'emg'
 ch_types[ch_names.index('EMGrgt')] = 'emg'
 
 info = create_info(ch_names, sfreq, ch_types=ch_types)
-
-from mne.io.fieldtrip.utils import _create_montage
 montage = _create_montage(ft_struct['data_left'])
 
 data_epochs = notch_filter(data_epochs, sfreq, [50., 100., 150.])
@@ -58,30 +62,75 @@ epochs.plot(scalings=dict(grad=10e-13), n_epochs=5, n_channels=10)
 
 epochs.plot_psd()
 
+####################
+# TIME-FREQUENCY
+
+
+def iter_epochs(epochs, average=True):
+    if average:
+        return epochs
+    for idx in range(len(epochs)):
+        yield epochs[idx]
+
+
 freqs = np.arange(20., 100., 1.)
 n_cycles = 44
 time_bandwidth = 4.0  # Least possible frequency-smoothing (1 taper)
 
-# XXX: how to deal with unequal trials?
-power = tfr_multitaper(epochs, freqs=freqs, n_cycles=n_cycles,
-                       time_bandwidth=time_bandwidth, return_itc=False,
-                       average=True)
-
 layout = read_layout('CTF151.lay')
 
 # Plot results.
-vmin, vmax = -0.45, 0.6
+# vmin, vmax = -0.45, 0.6
+vmin, vmax = -2, 3
 picks = ['MRP31', 'MZP02', 'MRO12', 'MR021', 'ML012']
 # XXX: label is incorrect
 baseline = (-0.8, 0.)
 mode = 'percent'
 tmax = 1.1
-power.plot(picks, baseline=baseline, mode=mode, vmin=vmin, vmax=vmax,
-           layout=layout, tmin=-0.8, tmax=tmax)
-power.plot_topomap(layout=layout, fmin=40., fmax=70., tmin=0.3, tmax=tmax,
-                   baseline=baseline, mode=mode, show_names=False,
-                   outlines='skirt')
+average = False
 
+n_epochs = 140
+# XXX: how to deal with unequal trials?
+for idx, epoch in enumerate(iter_epochs(epochs[:n_epochs], average=average)):
+    # XXX: This function needs to be more verbose. Say
+    # when you process each epoch.
+    print('[%d/%d]' % (idx, len(epochs)))
+    power = tfr_multitaper(epoch, freqs=freqs, n_cycles=n_cycles,
+                           time_bandwidth=time_bandwidth, return_itc=False,
+                           average=True)
+    fig1 = power.plot(picks, baseline=baseline, mode=mode, vmin=vmin,
+                      vmax=vmax, layout=layout, tmin=-0.8, tmax=tmax)
+    fig2 = power.plot_topomap(layout=layout, fmin=40., fmax=70.,
+                              tmin=0.3, tmax=tmax,
+                              baseline=baseline, mode=mode, show_names=False,
+                              outlines='skirt', vmin=-1, vmax=2,
+                              cbar_fmt='%.1f')
+    fig2.tight_layout()
+    rep.add_figs_to_section(fig1, captions='Trial %d (time-freq)' % idx,
+                            section='time-freq')
+    rep.add_figs_to_section(fig2, captions='Trial %d (topomap 40-70 Hz)' % idx,
+                            section='topomap')
+    if idx == 0:
+        power_sum = power
+    else:
+        power_sum += power
+
+power_sum.data /= n_epochs
+fig1 = power_sum.plot(picks, baseline=baseline, mode=mode, vmin=-0.45,
+                      vmax=0.6, layout=layout, tmin=-0.8, tmax=tmax)
+fig2 = power_sum.plot_topomap(layout=layout, fmin=40., fmax=70.,
+                              tmin=0.3, tmax=tmax,
+                              baseline=baseline, mode=mode, show_names=False,
+                              outlines='skirt', cbar_fmt='%.1f')
+fig2.tight_layout()
+rep.add_figs_to_section(fig1, captions='Average (time-freq)',
+                        section='time-freq')
+rep.add_figs_to_section(fig2, captions='Average (topomap 40-70 Hz)',
+                        section='topomap')
+
+rep.save('tf_gamm.html', overwrite=True)
+
+dffdfd
 # Download fsaverage files
 import mne
 import os.path as op

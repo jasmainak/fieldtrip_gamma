@@ -1,6 +1,9 @@
 """
 Reproduce FieldTrip example here:
 http://www.fieldtriptoolbox.org/tutorial/beamformingextended/
+
+First download:
+ftp://ftp.fieldtriptoolbox.org/pub/fieldtrip/tutorial/sensor_analysis/subjectK.mat
 """
 
 # Authors: Mainak Jas <mainakjas@gmail.com>

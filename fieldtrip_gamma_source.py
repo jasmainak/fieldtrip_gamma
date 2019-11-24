@@ -1,4 +1,8 @@
-"""Gamma tutorial of FieldTrip in source space."""
+"""Gamma tutorial of FieldTrip in source space.
+
+First download:
+ftp://ftp.fieldtriptoolbox.org/pub/fieldtrip/tutorial/sensor_analysis/subjectK.mat
+"""
 
 # Authors: Mainak Jas <mainakjas@gmail.com>
 
